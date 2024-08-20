@@ -31,13 +31,11 @@ class MVTecDRAEMTestDataset(Dataset):
     def __init__(self, root_dir, obj, resize_shape=None):
         self.root_dir = root_dir
         self.obj = obj
-        
         self.images = []
-        for obj in obj_list:
-            images_path = sorted(glob.glob(os.path.join(root_dir, obj) + "/test/*/*.png"))
-            for path in images_path:
-                self.images.append({"image": path, "prompt": prompt_template.format(obj)})   
-                
+        images_path = sorted(glob.glob(os.path.join(root_dir, self.obj) + "/test/*/*.png"))
+        for path in images_path:
+            self.images.append({"image": path, "prompt": prompt_template.format(obj)})   
+            
         self.resize_shape=resize_shape
 
     def __len__(self):
