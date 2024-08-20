@@ -86,7 +86,7 @@ class MVTecDRAEMTestDataset(Dataset):
 
 class MVTecDRAEMTrainDataset(Dataset):
 
-    def __init__(self, root_dir, anomaly_source_path, resize_shape=None, k_shot=4):
+    def __init__(self, root_dir, anomaly_source_path, resize_shape=None, k_shot=4, index_path=None):
         """
         Args:
             root_dir (string): Directory with all the images.
@@ -96,13 +96,21 @@ class MVTecDRAEMTrainDataset(Dataset):
         self.root_dir = root_dir
         self.resize_shape=resize_shape
         self.k_shot = k_shot
+        self.index_path = index_path
 
         self.images = []
-        for obj in obj_list:
-            images_path = sorted(glob.glob(os.path.join(root_dir, obj) + "/train/*/*.png"))
-            random_path = random.sample(images_path, self.k_shot)
-            for path in random_path:
-                self.images.append({"image": path, "prompt": prompt_template.format(obj)})   
+        if not self.index_path:
+            for obj in obj_list:
+                images_path = sorted(glob.glob(os.path.join(root_dir, obj) + "/train/*/*.png"))
+                random_path = random.sample(images_path, self.k_shot)
+                for path in random_path:
+                    self.images.append({"image": path, "prompt": prompt_template.format(obj)})  
+        else:
+            with open(self.index_path, "r") as file:
+                lines = file.readlines()
+                for line in lines:
+                    obj_name = line.split("/")[-4]
+                    self.images.append({"image": line, "prompt": prompt_template.format(obj_name)})
 
         self.anomaly_source_paths = sorted(glob.glob(anomaly_source_path+"/*/*.jpg"))
 
