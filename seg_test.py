@@ -74,11 +74,18 @@ def test(obj_name, mvtec_path, checkpoint_path, base_model_name, ldm_path, txt_p
     model_seg = DiscriminativeSubNetwork(in_channels=9, out_channels=2)
     temp_name = os.listdir(checkpoint_path)
     temp_path= os.path.join(checkpoint_path, temp_name[0])
-    model_seg.load_state_dict(torch.load(temp_path, map_location='cuda:0'))
-    
+    state_dict = torch.load(temp_path, map_location='cpu')
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        if key.startswith('module.'):
+            new_key = key[7:]  # 移除 'module.' 前缀
+        else:
+            new_key = key
+        new_state_dict[new_key] = value
+
+    model_seg.load_state_dict(new_state_dict)    
     model_seg.cuda()
     model_seg.eval()
-
     dataset = MVTecDRAEMTestDataset(mvtec_path, obj_name, resize_shape=[img_dim, img_dim])
     dataloader = DataLoader(dataset, batch_size=1,
                             shuffle=False, num_workers=0)
