@@ -1,0 +1,107 @@
+model:
+  base_learning_rate: 2.0e-06
+  target: rec_network.models.diffusion.ddpm.LatentDiffusion
+  params:
+    # 这里读取权重的操作直接放到train文件里面了
+    #ckpt_path:  modify the ckpt_path of rec_network when training the seg_network,  don't set when train the rec_network
+    # ckpt_path: /hdd2/yyk/DiffAD-main/logs/2024-08-09T10-11-03_mvtec/grid/checkpoints/last.ckpt  # 包含一个预训练好的权重    
+    linear_start: 0.0015
+    linear_end: 0.02
+    num_timesteps_cond: 1
+    log_every_t: 100
+    timesteps: 1000
+    first_stage_key: image
+    cond_stage_key: cond
+    image_size: 32
+    channels: 4
+    concat_mode: true
+    cond_stage_trainable: false
+    conditioning_key: hybrid
+    monitor: val/loss_simple_ema
+    unet_config:
+      target: rec_network.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 32
+        in_channels: 8
+        out_channels: 4
+        model_channels: 256
+        attention_resolutions:
+        - 4
+        - 2
+        - 1
+        num_res_blocks: 2
+        channel_mult:
+        - 1
+        - 2
+        - 4
+        num_head_channels: 32
+
+    first_stage_config:
+      target: rec_network.models.autoencoder.VQModel
+      params:
+        embed_dim: 4
+        n_embed: 16384
+        monitor: "val/rec_loss"
+        # 放到main文件里面去
+        # ckpt_path: "/hdd2/yyk/DiffAD-main/logs/2024-08-08T16-21-18_kl/grid/checkpoints/last.ckpt" #TODO: modify the ckpt_path of VAE
+        ddconfig:
+          double_z: false
+          z_channels: 4
+          resolution: 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult: [ 1,2,4,4 ]  # num_down = len(ch_mult)-1
+          num_res_blocks: 2
+          attn_resolutions:
+          - 32
+          dropout: 0.0
+        lossconfig:
+          target: taming.modules.losses.vqperceptual.VQLPIPSWithDiscriminator
+          params:
+            disc_conditional: false
+            disc_in_channels: 3
+            disc_num_layers: 2
+            disc_start: 1
+            disc_weight: 0.6
+            codebook_weight: 1.0
+
+    cond_stage_config: 
+      target: rec_network.modules.encoders.modules.FrozenCLIPEmbedder
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 24
+    num_workers: 0
+    wrap: false
+    train:
+      target: rec_network.data.mvtec.MVTecDRAEMTrainDataset
+      params:
+        root_dir: /home/yyk/datasets/mvtec_anomaly_detection #TODO: modify the path of training samples
+        anomaly_source_path: '/hdd2/yyk/DiffAD-main_2/datasets/dtd/images/'
+        k_shot: 4
+        resize_shape:
+        - 256
+        - 256
+
+
+lightning:
+  callbacks:
+    metrics_over_trainsteps_checkpoint:
+      target: pytorch_lightning.callbacks.ModelCheckpoint
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 400
+        max_images: 8
+        increase_log_steps: False
+
+  trainer:
+    benchmark: True
+
+
+
+
+
+
